@@ -1,0 +1,15 @@
+export const inputs = [
+  "Roll",
+  "Pitch",
+  "Yaw",
+  "Throttle",
+  "Brake",
+  "Slider1",
+  "Slider2",
+  "Slider3",
+  "Slider4",
+  "TranslateForward",
+  "TranslateRight",
+  "TranslateUp",
+  "TranslationMode",
+] as const;

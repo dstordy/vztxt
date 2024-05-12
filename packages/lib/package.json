@@ -1,0 +1,19 @@
+{
+  "name": "@vztxt/lib",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "generate": "antlr4ng -Dlanguage=TypeScript -o src/parser/generated -visitor -no-listener -Xexact-output-dir src/parser/grammar/vztxtLexer.g4 src/parser/grammar/vztxtParser.g4"
+  },
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "dependencies": {
+    "@vztxt/utils": "workspace:*",
+    "antlr4ng": "^3.0.4"
+  },
+  "devDependencies": {
+    "antlr4ng-cli": "^2.0.0"
+  }
+}
