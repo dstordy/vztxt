@@ -227,7 +227,7 @@ const codeOutputVisitor: NodeVisitorConfig<string, VisitorState> = {
           (astNode.matchNode<astNode.LiteralNode>(
             node.step,
             NodeTypes.Literal,
-          ) && node.step.value == "0"
+          ) && node.step.value == "1"
             ? ""
             : ` step ${visit(node.step, symbols, 0)}`) +
           ` ${printStatementBlock(node.body, symbols, depth)}`,
