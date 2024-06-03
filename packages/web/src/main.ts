@@ -1,17 +1,15 @@
-import { ProgramNode, matchNode } from "@vztxt/lib/ast/astNode";
-import { parseAndValidate } from "@vztxt/lib/parser/parse";
 import { saveAs } from "file-saver";
 import { html, render } from "lit-html";
 import { Ref, createRef, ref } from "lit-html/directives/ref.js";
-import xmlFormat from "xml-formatter";
 import { importXmlString } from "./import";
 import { MonacoCodeEditorElement } from "./monaco";
 import "./problems";
 import { sampleList } from "./samples";
 import "./style.css";
-import { exportXml } from "@vztxt/lib/export/exportXml";
-import { ProblemLog } from "@vztxt/lib/problemLog/problemLog";
+import { vztxtWorker } from "./vztxtSupport";
+import { filterProblems } from "@vztxt/lib/problemLog/problemLog";
 import { ProblemLevel } from "@vztxt/lib/problemLog/problem";
+import { exportXml } from "@vztxt/lib/export/exportXml";
 
 export const setContent = (targetId: string, content: string) => {
   const target = document.getElementById(targetId);
@@ -20,16 +18,12 @@ export const setContent = (targetId: string, content: string) => {
   }
 };
 
-const xmlSerializer = new XMLSerializer();
-
 const codeEditorRef: Ref<MonacoCodeEditorElement> = createRef();
 const fileInputRef: Ref<HTMLInputElement> = createRef();
 
-const dumpAst = (e: Event) => {
-  e.preventDefault();
-
+const dumpAst = async () => {
   if (codeEditorRef.value) {
-    const ast = parseAndValidate(codeEditorRef.value.getValue());
+    const ast = await vztxtWorker.produceAst(codeEditorRef.value.getValue());
     console.log(ast);
   }
 };
@@ -52,31 +46,21 @@ const importFileChanged = async () => {
   }
 };
 
-const handleExport = (e: Event) => {
-  e.preventDefault();
+const xmlSerializer = new XMLSerializer();
 
+const handleExport = async () => {
   if (codeEditorRef.value) {
-    const logger = new ProblemLog();
-    const ast = parseAndValidate(codeEditorRef.value.getValue(), logger);
-    const errors = logger.getFilteredProblems(ProblemLevel.Error);
-    if (errors.length > 0) {
+    const result = await vztxtWorker.produceAst(codeEditorRef.value.getValue());
+    if (
+      !result.ast ||
+      filterProblems(result.problems, ProblemLevel.Error).length > 0
+    ) {
       alert("Fix errors before exporting");
       return;
     }
-    if (ast) {
-      let filename = "out.xml";
-      if (matchNode<ProgramNode>(ast, "Program")) {
-        filename = ast.name + ".xml";
-      }
-      const raw = xmlSerializer.serializeToString(exportXml(ast));
-      const xml = xmlFormat(raw, {
-        indentation: "  ",
-        lineSeparator: "\n",
-        whiteSpaceAtEndOfSelfclosingTag: true,
-      });
-      const blob = new Blob([xml], { type: "text/xml;charset=utf-8" });
-      saveAs(blob, filename);
-    }
+    const raw = xmlSerializer.serializeToString(exportXml(result.ast));
+    const blob = new Blob([raw], { type: "text/xml;charset=utf-8" });
+    saveAs(blob, result.filename);
   }
 };
 
@@ -115,7 +99,9 @@ render(
       </header>
       ${import.meta.env.DEV
         ? html` <div class="flex justify-end content-end">
-            <button @click=${dumpAst} class="btn btn-xs">Dump AST</button>
+            <button @click=${() => dumpAst()} class="btn btn-xs">
+              Dump AST
+            </button>
           </div>`
         : ""}
       ${sampleList((doc) => {
@@ -160,7 +146,7 @@ render(
           Errors may occur in the output, avoid overwriting existing program
           files to prevent data loss.
         </p>
-        <button @click=${handleExport} class="btn btn-primary">
+        <button @click=${() => handleExport()} class="btn btn-primary">
           Export Flight Program XML
         </button>
       </div>

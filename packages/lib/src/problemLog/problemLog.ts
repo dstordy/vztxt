@@ -37,8 +37,9 @@ export class ProblemLog {
   error = (msg: string, start?: SrcLocation, end?: SrcLocation) => {
     this.postProblem(ProblemLevel.Error, msg, start, end);
   };
-
-  getFilteredProblems(minLevel: ProblemLevelType) {
-    return this.problems.filter((p) => p.level >= minLevel);
-  }
 }
+
+export const filterProblems = (
+  problems: Problem[],
+  minLevel: ProblemLevelType,
+) => problems.filter((p) => p.level >= minLevel);

@@ -3,7 +3,7 @@ import {
   ProblemLevel,
   ProblemLevelType,
 } from "@vztxt/lib/problemLog/problem";
-import { ProblemLog } from "@vztxt/lib/problemLog/problemLog";
+import { filterProblems } from "@vztxt/lib/problemLog/problemLog";
 import { html, render } from "lit-html";
 import { MonacoCodeEditorElement } from "./monaco";
 
@@ -13,7 +13,7 @@ export class ProblemsElement extends HTMLElement {
   }
 
   #displayProblemLevel: ProblemLevelType = ProblemLevel.Debug;
-  #problemLog: ProblemLog | undefined;
+  #problems: Problem[] = [];
 
   connectedCallback() {
     this.renderElement();
@@ -55,10 +55,11 @@ export class ProblemsElement extends HTMLElement {
   };
 
   renderElement() {
-    const problems =
-      this.#problemLog
-        ?.getFilteredProblems(this.#displayProblemLevel)
-        .map(this.#renderProblem) ?? [];
+    const problems = this.#problems
+      ? filterProblems(this.#problems, this.#displayProblemLevel).map(
+          this.#renderProblem,
+        )
+      : [];
 
     render(
       html`
@@ -77,8 +78,8 @@ export class ProblemsElement extends HTMLElement {
     );
   }
 
-  public set problemLog(problemLog: ProblemLog | undefined) {
-    this.#problemLog = problemLog;
+  public set problems(problems: Problem[]) {
+    this.#problems = problems;
     if (this.isConnected) this.renderElement();
   }
 }

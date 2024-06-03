@@ -1,8 +1,10 @@
-import { parseAndValidate } from "@vztxt/lib/parser/parse";
-import { ProblemLevel } from "@vztxt/lib/problemLog/problem";
-import { ProblemLog } from "@vztxt/lib/problemLog/problemLog";
+import { Problem, ProblemLevel } from "@vztxt/lib/problemLog/problem";
+import { filterProblems } from "@vztxt/lib/problemLog/problemLog";
+import { wrap } from "comlink";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
 import { ProblemsElement } from "./problems";
+import type { VztxtWorker as IVztxtWorker } from "./vztxt.worker";
+import VztxtWorker from "./vztxt.worker?worker";
 import * as vztxtSyntax from "./vztxtSyntax";
 
 const langId = "vztxt";
@@ -12,20 +14,21 @@ monaco.languages.register({
   extensions: ["vztxt"],
 });
 
+export const vztxtWorker = wrap<IVztxtWorker>(new VztxtWorker());
+
 const vztxtListeners = new Map<string, monaco.IDisposable>();
 
-function addModel(model: monaco.editor.ITextModel) {
+async function addModel(model: monaco.editor.ITextModel) {
   if (model.getLanguageId() != langId) return;
 
-  const validate = () => {
-    const logger = new ProblemLog();
-    parseAndValidate(model.getValue(), logger);
-    setMarkers(model, logger);
+  const validate = async () => {
+    const problems = await vztxtWorker.validate(model.getValue());
+    setMarkers(model, problems);
 
     const problemElements = document.querySelectorAll("vztxt-problems");
     for (const el of problemElements) {
       if (el instanceof ProblemsElement) {
-        el.problemLog = logger;
+        el.problems = problems;
       }
     }
   };
@@ -33,7 +36,7 @@ function addModel(model: monaco.editor.ITextModel) {
   let handle: ReturnType<typeof setTimeout> | undefined = undefined;
   const changeListener = model.onDidChangeContent(() => {
     if (handle != undefined) clearTimeout(handle);
-    handle = setTimeout(validate, 500);
+    handle = setTimeout(validate, 100);
   });
 
   vztxtListeners.set(model.uri.toString(), {
@@ -43,7 +46,7 @@ function addModel(model: monaco.editor.ITextModel) {
     },
   });
 
-  validate();
+  await validate();
 }
 
 function removeModel(model: monaco.editor.ITextModel) {
@@ -53,10 +56,10 @@ function removeModel(model: monaco.editor.ITextModel) {
   vztxtListeners.delete(key);
 }
 
-function setMarkers(model: monaco.editor.ITextModel, logger: ProblemLog) {
+function setMarkers(model: monaco.editor.ITextModel, problems: Problem[]) {
   const markers: monaco.editor.IMarkerData[] = [];
 
-  for (const problem of logger.getFilteredProblems(ProblemLevel.Debug)) {
+  for (const problem of filterProblems(problems, ProblemLevel.Debug)) {
     if (problem.start) {
       markers.push({
         message: problem.message,
@@ -73,7 +76,7 @@ function setMarkers(model: monaco.editor.ITextModel, logger: ProblemLog) {
 }
 
 monaco.editor.onDidCreateModel((model) => {
-  addModel(model);
+  void addModel(model);
 });
 
 monaco.editor.onWillDisposeModel((model) => {
@@ -82,7 +85,7 @@ monaco.editor.onWillDisposeModel((model) => {
 
 monaco.editor.onDidChangeModelLanguage((e) => {
   removeModel(e.model);
-  addModel(e.model);
+  void addModel(e.model);
 });
 
 monaco.languages.setMonarchTokensProvider(langId, vztxtSyntax.vztxtSyntax);
