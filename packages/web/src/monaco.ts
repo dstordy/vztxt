@@ -42,6 +42,8 @@ export class MonacoCodeEditorElement extends HTMLElement {
       theme: "vs-dark",
     });
 
+    // this.#monacoEditor.getModel()?.detectIndentation(true, 1);
+
     this.#monacoEditor.getModel()?.onDidChangeContent(() => {
       if (this.#timeoutHandle != null) clearTimeout(this.#timeoutHandle);
       this.#timeoutHandle = setTimeout(() => {

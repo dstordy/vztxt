@@ -6,6 +6,7 @@ import { ProblemsElement } from "./problems";
 import type { VztxtWorker as IVztxtWorker } from "./vztxt.worker";
 import VztxtWorker from "./vztxt.worker?worker";
 import * as vztxtSyntax from "./vztxtSyntax";
+import { rootTemplateSnippets } from "./vztxtSnippets";
 
 const langId = "vztxt";
 
@@ -105,9 +106,14 @@ monaco.languages.registerCompletionItemProvider(langId, {
       startColumn: word.startColumn,
       endColumn: word.endColumn,
     };
-    if (lineTextUntilPosition.match(/^\s*[^\s]*$/)) {
+
+    if (lineTextUntilPosition.match(/^[^\s]*$/)) {
       return {
-        suggestions: vztxtSyntax.instructionCompletions(range),
+        suggestions: [...rootTemplateSnippets(range)],
+      };
+    } else if (lineTextUntilPosition.match(/^\s*[^\s]*$/)) {
+      return {
+        suggestions: [...vztxtSyntax.instructionCompletions(range)],
       };
     } else {
       return {
